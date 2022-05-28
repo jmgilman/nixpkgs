@@ -60,6 +60,6 @@ buildPythonPackage rec {
     maintainers = with maintainers; [ goibhniu ];
     # error: use of undeclared identifier 'kFSEventStreamEventFlagItemCloned'
     # builds fine on aarch64-darwin
-    broken = stdenv.isDarwin && !stdenv.isAarch64;
+    # broken = stdenv.isDarwin && !stdenv.isAarch64;
   };
 }
