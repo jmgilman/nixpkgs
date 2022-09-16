@@ -17,18 +17,15 @@ rustPlatform.buildRustPackage rec {
   # and might be failing to create the test repository it works in.
   doCheck = false;
 
-  nativeBuildInputs = [ installShellFiles makeWrapper ];
+  nativeBuildInputs = [ installShellFiles ];
 
-  buildInputs = lib.optional stdenv.isDarwin Security;
+  buildInputs = [ libgit2 ] ++ lib.optional stdenv.isDarwin Security;
 
   postInstall = ''
     installShellCompletion --cmd cog \
       --bash <($out/bin/cog generate-completions bash) \
       --fish <($out/bin/cog generate-completions fish) \
       --zsh  <($out/bin/cog generate-completions zsh)
-
-    wrapProgram $out/bin/cog \
-      --prefix PATH : "${lib.makeBinPath [ git ]}"
   '';
 
   meta = with lib; {
