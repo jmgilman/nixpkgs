@@ -34,7 +34,7 @@ rec {
   inherit (import ./formats/java-properties/default.nix { inherit lib pkgs; })
     javaProperties;
 
-  json = {}: {
+  json = { opts ? {} }: {
 
     type = with lib.types; let
       valueType = nullOr (oneOf [
@@ -50,23 +50,23 @@ rec {
       };
     in valueType;
 
-    generate = name: value: pkgs.callPackage ({ runCommand, jq }: runCommand name {
+    generate = name: value: pkgs.callPackage ({ runCommand, jq }: runCommand name ({
       nativeBuildInputs = [ jq ];
       value = builtins.toJSON value;
       passAsFile = [ "value" ];
-    } ''
+    } // opts) ''
       jq . "$valuePath"> $out
     '') {};
 
   };
 
-  yaml = {}: {
+  yaml = { opts ? {} }: {
 
-    generate = name: value: pkgs.callPackage ({ runCommand, remarshal }: runCommand name {
+    generate = name: value: pkgs.callPackage ({ runCommand, remarshal }: runCommand name ({
       nativeBuildInputs = [ remarshal ];
       value = builtins.toJSON value;
       passAsFile = [ "value" ];
-    } ''
+    } // opts) ''
       json2yaml "$valuePath" "$out"
     '') {};
 
@@ -92,6 +92,7 @@ rec {
     # Alternative to listsAsDuplicateKeys, converts list to non-list
     # listToValue :: [IniAtom] -> IniAtom
     listToValue ? null,
+    opts ? {},
     ...
     }@args:
     assert !listsAsDuplicateKeys || listToValue == null;
@@ -131,7 +132,10 @@ rec {
               if lib.isList val then listToValue val else val
             )) value
           else value;
-      in pkgs.writeText name (lib.generators.toINI (removeAttrs args ["listToValue"]) transformedValue);
+      in pkgs.writeTextFile {
+        inherit name opts;
+        text = (lib.generators.toINI (removeAttrs args ["listToValue" "opts"]) transformedValue);
+    };
 
   };
 
@@ -141,6 +145,7 @@ rec {
     # Alternative to listsAsDuplicateKeys, converts list to non-list
     # listToValue :: [Atom] -> Atom
     listToValue ? null,
+    opts ? {},
     ...
     }@args:
     assert !listsAsDuplicateKeys || listToValue == null;
@@ -180,11 +185,14 @@ rec {
               if lib.isList val then listToValue val else val
             ) value
           else value;
-      in pkgs.writeText name (lib.generators.toKeyValue (removeAttrs args ["listToValue"]) transformedValue);
+      in pkgs.writeTextFile {
+         inherit name opts;
+         text = (lib.generators.toKeyValue (removeAttrs args ["listToValue" "opts"]) transformedValue);
+      };
 
   };
 
-  gitIni = { listsAsDuplicateKeys ? false, ... }@args: {
+  gitIni = { listsAsDuplicateKeys ? false, opts ? {}, ... }@args: {
 
     type = with lib.types; let
 
@@ -192,10 +200,13 @@ rec {
 
     in attrsOf (attrsOf (either iniAtom (attrsOf iniAtom)));
 
-    generate = name: value: pkgs.writeText name (lib.generators.toGitINI value);
+    generate = name: value: pkgs.writeTextFile {
+      inherit name opts;
+      text = (lib.generators.toGitINI value);
+    };
   };
 
-  toml = {}: json {} // {
+  toml = {opts ? {}}: json {} // {
     type = with lib.types; let
       valueType = oneOf [
         bool
@@ -210,11 +221,11 @@ rec {
       };
     in valueType;
 
-    generate = name: value: pkgs.callPackage ({ runCommand, remarshal }: runCommand name {
+    generate = name: value: pkgs.callPackage ({ runCommand, remarshal }: runCommand name ({
       nativeBuildInputs = [ remarshal ];
       value = builtins.toJSON value;
       passAsFile = [ "value" ];
-    } ''
+    } // opts) ''
       json2toml "$valuePath" "$out"
     '') {};
 
@@ -252,7 +263,7 @@ rec {
     [List]: <https://hexdocs.pm/elixir/List.html>
     [Tuple]: <https://hexdocs.pm/elixir/Tuple.html>
   */
-  elixirConf = { elixir ? pkgs.elixir }:
+  elixirConf = { elixir ? pkgs.elixir, opts ? {} }:
     with lib; let
       toElixir = value: with builtins;
         if value == null then "nil" else
@@ -407,11 +418,11 @@ rec {
         };
 
       generate = name: value: pkgs.runCommand name
-        {
+        ({
           value = toConf value;
           passAsFile = [ "value" ];
           nativeBuildInputs = [ elixir ];
-        } ''
+        } // opts) ''
         cp "$valuePath" "$out"
         mix format "$out"
       '';
