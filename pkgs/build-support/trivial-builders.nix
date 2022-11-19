@@ -129,6 +129,7 @@ rec {
         allowSubstitutes = false;
       } // opts )
       ''
+        runHook preBuild
         target=$out${lib.escapeShellArg destination}
         mkdir -p "$(dirname "$target")"
 
@@ -141,6 +142,7 @@ rec {
         eval "$checkPhase"
 
         (test -n "$executable" && chmod +x "$target") || true
+        runHook postBuild
       '';
 
   /*
