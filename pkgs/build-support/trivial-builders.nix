@@ -119,15 +119,17 @@ rec {
     , destination ? ""   # relative path appended to $out eg "/bin/foo"
     , checkPhase ? ""    # syntax checks, e.g. for scripts
     , meta ? { }
+    , opts ? { }
     }:
     runCommand name
-      { inherit text executable checkPhase meta;
+      ({ inherit text executable checkPhase meta;
         passAsFile = [ "text" ];
         # Pointless to do this on a remote machine.
         preferLocalBuild = true;
         allowSubstitutes = false;
-      }
+      } // opts )
       ''
+        runHook preBuild
         target=$out${lib.escapeShellArg destination}
         mkdir -p "$(dirname "$target")"
 
@@ -140,6 +142,7 @@ rec {
         eval "$checkPhase"
 
         (test -n "$executable" && chmod +x "$target") || true
+        runHook postBuild
       '';
 
   /*
